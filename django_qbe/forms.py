@@ -1,18 +1,13 @@
 # -*- coding: utf-8 -*-
-from __future__ import print_function
-from builtins import range
+
 import collections
 from django import forms
 from django.db import connections
 from django.db.models.fields import Field
-from django.core.urlresolvers import reverse, NoReverseMatch
+from django.urls import reverse, NoReverseMatch
 from django.conf import settings
 from django.forms.formsets import BaseFormSet, formset_factory
-try:
-    from importlib import import_module
-except ImportError:
-    # Backward compatibility for Django prior to 1.7
-    from django.utils.importlib import import_module
+from importlib import import_module
 from django.utils.translation import ugettext as _
 
 from django_qbe.operators import CustomOperator, BACKEND_TO_OPERATIONS
@@ -20,17 +15,7 @@ from django_qbe.utils import get_models
 from django_qbe.widgets import CriteriaInput
 
 
-DATABASES = None
-try:
-    DATABASES = settings.DATABASES
-except AttributeError:
-    # Backwards compatibility for Django versions prior to 1.1.
-    DATABASES = {
-        'default': {
-            'ENGINE': "django.db.backends.%s" % settings.DATABASE_ENGINE,
-            'NAME': settings.DATABASE_NAME,
-        }
-    }
+DATABASES = settings.DATABASES
 
 SORT_CHOICES = (
     ("", ""),
@@ -38,6 +23,9 @@ SORT_CHOICES = (
     ("des", _("Descending")),
 )
 
+DB_ENGINE2MOD = {
+    'postgresql_psycopg2': 'postgresql',
+}
 
 class QueryByExampleForm(forms.Form):
     show = forms.BooleanField(label=_("Show"), required=False)
@@ -103,10 +91,13 @@ class BaseQueryByExampleFormSet(BaseFormSet):
         self._db_alias = kwargs.pop("using", "default")
         self._db_connection = connections["default"]
         database_properties = DATABASES.get(self._db_alias, "default")
-        module = database_properties['ENGINE']
+        module = database_properties['ENGINE'].split('.')[-1]
+        module = DB_ENGINE2MOD.get(module, module)
+        base_mod = False
+        intros_mod = False
         try:
-            base_mod = import_module("%s.base" % module)
-            intros_mod = import_module("%s.introspection" % module)
+            base_mod = import_module(f'django.db.backends.{module}.base')
+            intros_mod = import_module(f'django.db.backends.{module}.introspection')
         except ImportError:
             pass
         if base_mod and intros_mod:
@@ -138,7 +129,7 @@ class BaseQueryByExampleFormSet(BaseFormSet):
         (selects, aliases, froms, wheres, sorts, groups_by,
          params) = self.get_query_parts()
         if not selects:
-            validation_message = _(u"At least you must check a row to get.")
+            validation_message = _("At least you must check a row to get.")
             raise forms.ValidationError(validation_message)
         self._selects = selects
         self._aliases = aliases
@@ -157,10 +148,10 @@ class BaseQueryByExampleFormSet(BaseFormSet):
             else:
                 _field_db_column = _field.attname
         elif is_join:
-            _field_db_column = u"%s_id" % field
+            _field_db_column = "%s_id" % field
         else:
             _field_db_column = field
-        return u"%s.%s" % (qn(model), qn(_field_db_column))
+        return "%s.%s" % (qn(model), qn(_field_db_column))
 
     def get_query_parts(self):
         """
@@ -184,9 +175,9 @@ class BaseQueryByExampleFormSet(BaseFormSet):
             # HACK: Workaround to handle tables created
             #       by django for its own
             if not app_model_labels:
-                app_models = get_models(include_auto_created=True,
-                                        include_deferred=True)
-                app_model_labels = [u"%s_%s" % (a._meta.app_label,
+                app_models = get_models(include_auto_created=True)
+                                        #include_deferred=True)
+                app_model_labels = ["%s_%s" % (a._meta.app_label,
                                                 a._meta.model_name)
                                     for a in app_models]
             if model in app_model_labels:
@@ -223,7 +214,7 @@ class BaseQueryByExampleFormSet(BaseFormSet):
                     over_split = over.lower().rsplit(".", 1)
                     join_model = qn(over_split[0].replace(".", "_"))
                     join_field = qn(over_split[1])
-                    join = u"%s.%s = %s" % (join_model, join_field, db_field)
+                    join = "%s.%s = %s" % (join_model, join_field, db_field)
                     if (join not in wheres
                             and uqn(join_model) in self._db_table_names):
                         wheres.append(join)
@@ -237,7 +228,7 @@ class BaseQueryByExampleFormSet(BaseFormSet):
                     db_operator = self._db_operators[operator]
                     lookup = self._get_lookup(operator, over)
                     params.append(lookup)
-                    wheres.append(u"%s %s"
+                    wheres.append("%s %s"
                                   % (lookup_cast(operator) % db_field,
                                      db_operator))
                 elif operator in self._custom_operators:
@@ -267,37 +258,37 @@ class BaseQueryByExampleFormSet(BaseFormSet):
         if self._raw_query:
             return self._raw_query
         if self._sorts:
-            order_by = u"ORDER BY %s" % (", ".join(self._sorts))
+            order_by = "ORDER BY %s" % (", ".join(self._sorts))
         else:
-            order_by = u""
+            order_by = ""
         if self._groups_by:
-            group_by = u"GROUP BY %s" % (", ".join(self._groups_by))
+            group_by = "GROUP BY %s" % (", ".join(self._groups_by))
         else:
-            group_by = u""
+            group_by = ""
         if self._wheres:
-            wheres = u"WHERE %s" % (" AND ".join(self._wheres))
+            wheres = "WHERE %s" % (" AND ".join(self._wheres))
         else:
-            wheres = u""
+            wheres = ""
         if count:
-            selects = (u"COUNT(*) as count", )
-            order_by = u""
+            selects = ("COUNT(*) as count", )
+            order_by = ""
         elif add_extra_ids and not group_by:
             selects = self._get_selects_with_extra_ids()
         else:
             selects = self._selects
-        limits = u""
+        limits = ""
         if limit:
             try:
-                limits = u"LIMIT %s" % int(limit)
+                limits = "LIMIT %s" % int(limit)
             except ValueError:
                 pass
-        offsets = u""
+        offsets = ""
         if offset:
             try:
-                offsets = u"OFFSET %s" % int(offset)
+                offsets = "OFFSET %s" % int(offset)
             except ValueError:
                 pass
-        sql = u"""SELECT %s FROM %s %s %s %s %s %s;""" \
+        sql = """SELECT %s FROM %s %s %s %s %s %s;""" \
               % (", ".join(selects),
                  ", ".join(self._froms),
                  wheres,
@@ -306,7 +297,7 @@ class BaseQueryByExampleFormSet(BaseFormSet):
                  limits,
                  offsets)
         if add_params:
-            return u"%s /* %s */" % (sql, ", ".join(self._params))
+            return "%s /* %s */" % (sql, ", ".join(self._params))
         else:
             return sql
 
@@ -337,7 +328,7 @@ class BaseQueryByExampleFormSet(BaseFormSet):
                 i = 0
                 l = len(row)
                 if row_number:
-                    result = [(r + offset + 1, u"#row%s" % (r + offset + 1))]
+                    result = [(r + offset + 1, "#row%s" % (r + offset + 1))]
                 else:
                     result = []
                 while i < l:
@@ -347,7 +338,7 @@ class BaseQueryByExampleFormSet(BaseFormSet):
                     try:
                         if appmodel in self._models:
                             _model = self._models[appmodel]
-                            _appmodel = u"%s_%s" % (_model._meta.app_label,
+                            _appmodel = "%s_%s" % (_model._meta.app_label,
                                                     _model._meta.model_name)
                         else:
                             _appmodel = appmodel
@@ -384,7 +375,7 @@ class BaseQueryByExampleFormSet(BaseFormSet):
 
     def get_labels(self, add_extra_ids=False, row_number=False, aliases=False):
         if row_number:
-            labels = [_(u"#")]
+            labels = [_("#")]
         else:
             labels = []
         if add_extra_ids:
@@ -394,10 +385,10 @@ class BaseQueryByExampleFormSet(BaseFormSet):
         if selects and isinstance(selects, (tuple, list)):
             for i, select in enumerate(selects):
                 label = self._aliases[i]
-                if not aliases or label.strip() == u"":
-                    label_splits = select.replace(u"_", u".").split(u".")
-                    label_splits_field = u" ".join(label_splits[2:])
-                    label = u"%s.%s: %s" % (label_splits[0].capitalize(),
+                if not aliases or label.strip() == "":
+                    label_splits = select.replace("_", ".").split(".")
+                    label_splits_field = " ".join(label_splits[2:])
+                    label = "%s.%s: %s" % (label_splits[0].capitalize(),
                                             label_splits[1].capitalize(),
                                             label_splits_field.capitalize())
                 labels.append(label)
@@ -431,7 +422,7 @@ class BaseQueryByExampleFormSet(BaseFormSet):
             if appmodel in self._models:
                 pk_name = self._models[appmodel]._meta.pk.name
             else:
-                pk_name = u"id"
+                pk_name = "id"
             selects.append("%s.%s" % (qn(appmodel), qn(pk_name)))
         return selects
 

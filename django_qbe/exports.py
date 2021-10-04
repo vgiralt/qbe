@@ -1,22 +1,12 @@
-from future import standard_library
-standard_library.install_aliases()
-from builtins import str
-from builtins import object
 # -*- coding: utf-8 -*-
+#from future import standard_library
+#standard_library.install_aliases()
 import codecs
 import csv
-try:
-    # Use byte-oriented StringIO on Python 2!
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
+from io import StringIO
 
 from django.http import HttpResponse
-try:
-    from collections import OrderedDict
-except ImportError:
-    # Backward compatibility for Django prior to 1.7
-    from django.utils.datastructures import SortedDict as OrderedDict
+from collections import OrderedDict
 
 __all__ = ("formats", )
 

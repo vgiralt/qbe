@@ -1,11 +1,6 @@
 # -*- coding: utf-8 -*-
-from __future__ import print_function
-from __future__ import division
-from past.builtins import cmp
-from builtins import zip
-from builtins import filter
-from builtins import range
-from past.utils import old_div
+
+
 import base64
 import pickle
 import random
@@ -26,21 +21,13 @@ except ImportError:
                 for cc in combinations(items[i + 1:], n - 1):
                     yield [items[i]] + cc
 
-try:
-    from django.apps import apps
-    get_models = apps.get_models
-except ImportError:
-    # Backward compatibility for Django prior to 1.7
-    from django.db.models import get_models
+from django.apps import apps
+get_models = apps.get_models
 from django.db.models.fields.related import (ForeignKey, OneToOneField,
                                              ManyToManyField)
 from django.core.exceptions import SuspiciousOperation
 from django.conf import settings
-try:
-    from importlib import import_module
-except ImportError:
-    # Backward compatibility for Django prior to 1.7
-    from django.utils.importlib import import_module
+from importlib import import_module
 
 from django_qbe.settings import (
     QBE_ADMIN_SITE,
@@ -59,14 +46,7 @@ except (AttributeError, ImportError):
     from django.contrib.admin import site as admin_site
 admin_site
 
-try:
-    from django.contrib.contenttypes.fields import GenericRelation
-except ImportError:
-    # Backward compatibility for Django prior to 1.7
-    try:
-        from django.db.models.fields.generic import GenericRelation
-    except ImportError:
-        from django.contrib.contenttypes.generic import GenericRelation
+from django.contrib.contenttypes.fields import GenericRelation
 
 try:
     qbe_formats = QBE_FORMATS_EXPORT
@@ -83,11 +63,11 @@ except ImportError:
 
 
 def qbe_models(admin_site=None, only_admin_models=False, json=False):
-    app_models = get_models(include_auto_created=True, include_deferred=True)
-    app_models_with_no_includes = get_models(include_auto_created=False,
-                                             include_deferred=False)
+    app_models = get_models(include_auto_created=True)#, include_deferred=True)
+    app_models_with_no_includes = get_models(include_auto_created=False)
+                                             #include_deferred=False)
     if admin_site:
-        admin_models = [m for m, a in admin_site._registry.items()]
+        admin_models = [m for m, a in list(admin_site._registry.items())]
     else:
         admin_models = []
     if only_admin_models:
@@ -99,7 +79,7 @@ def qbe_models(admin_site=None, only_admin_models=False, json=False):
             'name': field.name,
             'type': type(field).__name__,
             'blank': field.blank,
-            'label': u"%s" % field.verbose_name.lower().capitalize(),
+            'label': "%s" % field.verbose_name.lower().capitalize(),
             'primary': field.primary_key,
         }}
 
@@ -112,7 +92,7 @@ def qbe_models(admin_site=None, only_admin_models=False, json=False):
                 'name': through_field.name,
                 'type': type(through_field).__name__,
                 'blank': through_field.blank,
-                'label': u"%s" % label,
+                'label': "%s" % label,
             }
             if hasattr(through_field.rel, "to"):
                 through_rel = through_field.rel
@@ -130,19 +110,19 @@ def qbe_models(admin_site=None, only_admin_models=False, json=False):
         return through_fields
 
     def get_target(field):
-        name = field.rel.to.__module__.split(".")[-2].lower().capitalize()
+        name = field.related_model.__module__.split(".")[-2].lower().capitalize()
         target = {
             'name': name,
-            'model': field.rel.to.__name__,
-            'field': field.rel.to._meta.pk.name,
+            'model': field.related_model.__name__,
+            'field': field.related_model._meta.pk.name,
         }
-        if hasattr(field.rel, 'through') and field.rel.through is not None:
-            name = field.rel.through.__module__.split(".")[-2]
+        if hasattr(field.related_model, 'through') and field.related_model.through is not None:
+            name = field.related_model.through.__module__.split(".")[-2]
             target.update({
                 'through': {
                     'name': name.lower().capitalize(),
-                    'model': field.rel.through.__name__,
-                    'field': field.rel.through._meta.pk.name,
+                    'model': field.related_model.through.__name__,
+                    'field': field.related_model.through._meta.pk.name,
                 }
             })
         return target
@@ -212,8 +192,8 @@ def qbe_models(admin_site=None, only_admin_models=False, json=False):
 def qbe_graph(admin_site=None, directed=False):
     models = qbe_models(admin_site)
     graph = {}
-    for k, v in models.items():
-        for l, w in v.items():
+    for k, v in list(models.items()):
+        for l, w in list(v.items()):
             key = "%s.%s" % (k, l)
             if key not in graph:
                 graph[key] = []
@@ -287,7 +267,7 @@ def qbe_tree(graph, nodes, root=None):
 def remove_leafs(tree, nodes):
 
     def get_leafs(tree, nodes):
-        return [node for node, edges in tree.items()
+        return [node for node, edges in list(tree.items())
                 if len(edges) < 2 and node not in nodes]
 
     def delete_edge_leafs(tree, leaf):
@@ -311,11 +291,11 @@ def remove_leafs(tree, nodes):
 
 def qbe_forest(graph, nodes):
     forest = []
-    for node, edges in graph.items():
+    for node, edges in list(graph.items()):
         tree, are_all = qbe_tree(graph, copy(nodes), root=node)
         if are_all and tree not in forest:
             forest.append(tree)
-    return sorted(forest, cmp=lambda x, y: cmp(len(x), len(y)))
+    return sorted(forest, key=len)
 
 
 def find_all_paths(graph, start_node, end_node, path=None):
@@ -386,7 +366,7 @@ def _combine(items, val=None, paths=None, length=None):
 
             def visited_path(x):
                 return x not in paths
-            path = filter(visited_path, path)
+            path = list(filter(visited_path, path))
             paths.extend(path)
     return paths
 
@@ -404,7 +384,7 @@ def combine(items, k=None):
     if k is not None:
         k = k % length
         # Python division by default is integer division (~ floor(a/b))
-        indices = [old_div((k % (lengths[i] * repeats[i])), repeats[i])
+        indices = [(k % (lengths[i] * repeats[i])) // repeats[i]
                    for i in range(length_items)]
         return [items[i][indices[i]] for i in range(length_items)]
     else:
@@ -413,7 +393,7 @@ def combine(items, k=None):
             row = []
             for subset in item:
                 row.extend([subset] * repeats[i])
-            times = old_div(length, len(row))
+            times = length // len(row)
             matrix.append(row * times)
         # Transpose the matrix or return the columns instead rows
         return list(zip(*matrix))
@@ -437,7 +417,7 @@ def autocomplete_graph(admin_site, current_models, directed=False):
 #            if all(map(lambda x: x in path, current_models)):
 #                if path not in valid_paths:
 #                    valid_paths.append(path)
-    return sorted(valid_paths, cmp=lambda x, y: cmp(len(x), len(y)))
+    return sorted(valid_paths, key=len)
 
 
 # Taken from django.contrib.sessions.backends.base
@@ -452,8 +432,8 @@ def pickle_decode(session_data):
     # The '+' character is translated to ' ' in request
     session_data = session_data.replace(" ", "+")
     # The length of the encoded string should be a multiple of 4
-    while (((old_div(len(session_data), 4.0)) - (old_div(len(session_data), 4))) != 0):
-        session_data += u"="
+    while (((len(session_data) // 4.0) - (len(session_data) // 4)) != 0):
+        session_data += "="
     encoded_data = base64.decodestring(session_data)
     pickled, tamper_check = encoded_data[:-32], encoded_data[-32:]
     pickled_md5 = get_query_hash(pickled)

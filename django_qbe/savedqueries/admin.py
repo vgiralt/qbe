@@ -31,8 +31,8 @@ class SavedQueryAdmin(admin.ModelAdmin):
         info = (QBE_ADMIN,
                 self.model._meta.app_label,
                 self.model._meta.model_name or self.model._meta.module_name)
-        return (u'<span class="nowrap"><a href="%s">%s</a>'
-                u' | <a href="%s">%s</a></span>' %
+        return ('<span class="nowrap"><a href="%s">%s</a>'
+                ' | <a href="%s">%s</a></span>' %
                 (reverse("%s:%s_%s_run" % info, args=(obj.pk,)), _("Run"),
                  reverse("qbe_form", kwargs={'query_hash': obj.pk}),
                  _("Edit")))

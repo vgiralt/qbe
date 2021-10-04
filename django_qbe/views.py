@@ -2,7 +2,7 @@
 import json
 
 from django.contrib.auth.decorators import user_passes_test
-from django.core.urlresolvers import reverse
+from django.urls import reverse
 from django.http import HttpResponse
 from django.shortcuts import render, redirect
 from django.template.loader import render_to_string
@@ -63,7 +63,7 @@ def qbe_form(request, query_hash=None):
         'formset': formset,
         'databases': DATABASES,
         'database_alias': db_alias,
-        'title': _(u"Query by Example"),
+        'title': _("Query by Example"),
         'title_url': title_url,
         'saved_query': saved_query,
         'json_models': json_models,
@@ -136,7 +136,7 @@ def qbe_results(request, query_hash):
             saved_query = saved_queries.first()
         context = {
             'formset': formset,
-            'title': _(u"Query by Example"),
+            'title': _("Query by Example"),
             'title_url': title_url,
             'saved_query': saved_query,
             'results': results,
@@ -192,8 +192,8 @@ def qbe_js(request):
     user_passed_test = request.user and qbe_access_for(request.user)
     return HttpResponse(render_to_string('qbe_index.js', {
         'qbe_url': reverse("qbe_form"),
-        'reports_label': _(u"Reports"),
-        'qbe_label': _(u"Query by Example"),
+        'reports_label': _("Reports"),
+        'qbe_label': _("Query by Example"),
         'user_passes_test': user_passed_test,
     }), mimetype="text/javascript")
 

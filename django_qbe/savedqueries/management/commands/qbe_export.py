@@ -11,7 +11,7 @@ from django_qbe.utils import formats, pickle_decode
 
 
 class Command(BaseCommand):
-    available_formats = ", ".join(formats.keys())
+    available_formats = ", ".join(list(formats.keys()))
     option_list = BaseCommand.option_list + (
         make_option('--output',
             dest='output',
@@ -36,7 +36,7 @@ class Command(BaseCommand):
         if args:
             query_hash = args[0]
         else:
-            self.stderr.write(u"Wrong or missing hash code\n")
+            self.stderr.write("Wrong or missing hash code\n")
             return None
         output = options.get("output", None)
         file_name = None
@@ -50,7 +50,7 @@ class Command(BaseCommand):
                                   % file_name)
         export_format = options.get("export_format", "csv")
         if export_format not in formats:
-            self.stderr.write(u"Wrong format to export: %s\n" % export_format)
+            self.stderr.write("Wrong format to export: %s\n" % export_format)
             return None
         db_alias = options.get("db_alias", "default")
         saved_queries = SavedQuery.objects.filter(query_hash=query_hash)
@@ -69,9 +69,9 @@ class Command(BaseCommand):
                 else:
                     self.stdout.write(response.content)
             else:
-                self.stderr.write(u"Malformed query: %s\n" % query_hash)
+                self.stderr.write("Malformed query: %s\n" % query_hash)
         else:
-            self.stderr.write(u"Invalid query_hash, returned %s queries\n" \
+            self.stderr.write("Invalid query_hash, returned %s queries\n" \
                               % saved_queries_length)
         if output:
             file_descr.close()

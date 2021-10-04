@@ -1,9 +1,10 @@
 {% extends "qbe.html" %}
 {% load i18n qbe_tags %}
+{% load static %}
 
 {% block extrahead %}
-<script type="text/javascript" src="{% firstof STATIC_URL MEDIA_URL %}django_qbe/js/jquery.js"></script>
-<link rel="stylesheet" type="text/css" href="{% firstof STATIC_URL MEDIA_URL %}django_qbe/css/qbe.css" />
+<script type="text/javascript" src="{% static 'django_qbe/js/jquery.js' %}"></script>
+<link rel="stylesheet" type="text/css" href="{% static 'django_qbe/css/qbe.css' %}" />
 {% endblock %}
 
 {% block breadcrumbs_inner %}

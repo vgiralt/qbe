@@ -44,11 +44,11 @@ class CheckboxLabelWidget(Widget):
         final_attrs = self.build_attrs(self.attrs, name=name)
         prelabel = prelabel or self.prelabel
         if prelabel:
-            out = u'<label for="%s" >%s</label><input type="checkbox"%s >' \
+            out = '<label for="%s" >%s</label><input type="checkbox"%s >' \
                   % (self.attrs.get("id", ""), value or self.label,
                      flatatt(final_attrs))
         else:
-            out = u'<input type="checkbox"%s ><label for="%s" >%s</label>' \
+            out = '<input type="checkbox"%s ><label for="%s" >%s</label>' \
                   % (flatatt(final_attrs), self.attrs.get("id", ""),
                      value or self.label)
         return mark_safe(out)
@@ -67,7 +67,7 @@ class CriteriaInput(MultiWidget):
 
         # inject custom operators
         ALL_OPERATOR_CHOICES = OPERATOR_CHOICES
-        for operator_slug, operator in custom_operators.items():
+        for operator_slug, operator in list(custom_operators.items()):
             ALL_OPERATOR_CHOICES += ((operator_slug, operator.label),)
 
         widgets = [Select(choices=ALL_OPERATOR_CHOICES), TextInput()]
